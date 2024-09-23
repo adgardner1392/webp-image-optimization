@@ -3,7 +3,7 @@
 Plugin Name: WebP Image Optimization
 Plugin URI: https://example.com/plugins/webp-image-optimization/
 Description: Automatically converts uploaded images to WebP format and resizes them.
-Version: 1.0
+Version: 1.1
 Author: Adam Gardner
 Author URI: https://github.com/adgardner1392
 License: GPLv2 or later
@@ -198,7 +198,7 @@ function webp_image_optimization_sanitize_settings( $input ) {
  * Settings section callback
  */
 function webp_image_optimization_settings_section_callback() {
-    echo '<p>' . __( 'Set the maximum dimensions for images, specify image quality/compression, and select which image types you do not want to convert to WebP. Images larger than the specified dimensions will be resized upon upload.', 'webp-image-optimization' ) . '</p>';
+    echo '<p>' . esc_html__( 'Set the maximum dimensions for images, specify image quality/compression, and select which image types you do not want to convert to WebP. Images larger than the specified dimensions will be resized upon upload.', 'webp-image-optimization' ) . '</p>';
 }
 
 /**
@@ -207,7 +207,7 @@ function webp_image_optimization_settings_section_callback() {
 function webp_image_optimization_max_width_render() {
     $options = get_option( 'webp_image_optimization_settings' );
     $max_width = isset( $options['max_width'] ) ? esc_attr( $options['max_width'] ) : '';
-    echo '<input type="number" name="webp_image_optimization_settings[max_width]" value="' . $max_width . '" />';
+    echo '<input type="number" name="webp_image_optimization_settings[max_width]" value="' . esc_attr( $max_width ) . '" />';
 }
 
 /**
@@ -216,7 +216,7 @@ function webp_image_optimization_max_width_render() {
 function webp_image_optimization_max_height_render() {
     $options = get_option( 'webp_image_optimization_settings' );
     $max_height = isset( $options['max_height'] ) ? esc_attr( $options['max_height'] ) : '';
-    echo '<input type="number" name="webp_image_optimization_settings[max_height]" value="' . $max_height . '" />';
+    echo '<input type="number" name="webp_image_optimization_settings[max_height]" value="' . esc_attr( $max_height ) . '" />';
 }
 
 /**
@@ -227,12 +227,13 @@ function webp_image_optimization_jpeg_quality_render() {
     $jpeg_quality = isset( $options['jpeg_quality'] ) ? esc_attr( $options['jpeg_quality'] ) : '90';
     ?>
     <div class="webp-settings__field webp-settings__field--jpeg-quality">
-        <input type="range" class="webp-settings__slider" id="jpeg_quality_range" value="<?php echo $jpeg_quality; ?>" min="0" max="100" />
-        <input type="number" class="webp-settings__input" id="jpeg_quality_number" name="webp_image_optimization_settings[jpeg_quality]" value="<?php echo $jpeg_quality; ?>" min="0" max="100" />
-        <span class="webp-settings__value" id="jpeg_quality_value"><?php echo $jpeg_quality; ?></span>
+        <input type="range" class="webp-settings__slider" id="jpeg_quality_range" value="<?php echo esc_attr( $jpeg_quality ); ?>" min="0" max="100" />
+        <input type="number" class="webp-settings__input" id="jpeg_quality_number" name="webp_image_optimization_settings[jpeg_quality]" value="<?php echo esc_attr( $jpeg_quality ); ?>" min="0" max="100" />
+        <span class="webp-settings__value" id="jpeg_quality_value"><?php echo esc_html( $jpeg_quality ); ?></span>
     </div>
     <?php
 }
+
 
 /**
  * Render PNG Compression Level field
@@ -242,9 +243,9 @@ function webp_image_optimization_png_compression_render() {
     $png_compression = isset( $options['png_compression'] ) ? esc_attr( $options['png_compression'] ) : '6';
     ?>
     <div class="webp-settings__field webp-settings__field--png-compression">
-        <input type="range" class="webp-settings__slider" id="png_compression_range" value="<?php echo $png_compression; ?>" min="0" max="9" />
-        <input type="number" class="webp-settings__input" id="png_compression_number" name="webp_image_optimization_settings[png_compression]" value="<?php echo $png_compression; ?>" min="0" max="9" />
-        <span class="webp-settings__value" id="png_compression_value"><?php echo $png_compression; ?></span>
+        <input type="range" class="webp-settings__slider" id="png_compression_range" value="<?php echo esc_attr( $png_compression ); ?>" min="0" max="9" />
+        <input type="number" class="webp-settings__input" id="png_compression_number" name="webp_image_optimization_settings[png_compression]" value="<?php echo esc_attr( $png_compression ); ?>" min="0" max="9" />
+        <span class="webp-settings__value" id="png_compression_value"><?php echo esc_attr( $png_compression ); ?></span>
     </div>
     <?php
 }
@@ -273,9 +274,10 @@ function webp_image_optimization_dont_convert_png_render() {
 function webp_image_optimization_render_settings_page() {
     ?>
     <div class="wrap">
-        <h1><?php _e( 'WebP Image Optimization Settings', 'webp-image-optimization' ); ?></h1>
+        <h1><?php esc_html_e( 'WebP Image Optimization Settings', 'webp-image-optimization' ); ?></h1>
         <form method="post" action="options.php">
             <?php
+            // These functions already handle escaping internally.
             settings_fields( 'webp_image_optimization_settings_group' );
             do_settings_sections( 'webp_image_optimization_settings' );
             submit_button();
