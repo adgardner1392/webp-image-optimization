@@ -77,7 +77,7 @@ No, the plugin only processes images uploaded after the plugin has been activate
 
 = What happens to the original JPEG or PNG files after conversion? =
 
-By default, the original images remain on the server. You can modify the plugin code to delete original files if desired, but be cautious as this action cannot be undone.
+By default, the original images remain on the server.
 
 = Can I exclude certain image types from conversion to WebP? =
 
