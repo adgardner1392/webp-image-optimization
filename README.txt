@@ -5,7 +5,7 @@ Tags: webp, image optimization, image conversion, jpeg, png
 Requires at least: 5.0
 Tested up to: 6.6.2
 Requires PHP: 7.2
-Stable tag: 1.1
+Stable tag: 1.1.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -101,6 +101,10 @@ Yes, you can set the JPEG quality (0-100) and PNG compression level (0-9) via th
 2. **Settings Page - Mobile View**
 
 == Changelog ==
+
+= 1.1.1 =
+
+- Removed hidden .DS_Store file
 
 = 1.1 =
 
