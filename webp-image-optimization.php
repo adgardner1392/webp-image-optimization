@@ -3,26 +3,17 @@
 Plugin Name: WebP Image Optimization
 Plugin URI: https://github.com/adgardner1392/webp-image-optimization
 Description: Automatically converts uploaded images to WebP format and resizes them.
-Version: 1.2
+Version: 1.2.1
 Author: Adam Gardner
 Author URI: https://github.com/adgardner1392
 License: GPLv2 or later
 Text Domain: webp-image-optimization
-Domain Path: /languages
 */
 
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
-
-/**
- * Load plugin textdomain for translations.
- */
-function webp_image_optimization_load_textdomain() {
-    load_plugin_textdomain( 'webp-image-optimization', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
-}
-add_action( 'plugins_loaded', 'webp_image_optimization_load_textdomain' );
 
 /**
  * Enqueue admin scripts and styles
