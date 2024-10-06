@@ -1,9 +1,9 @@
 <?php
 /*
 Plugin Name: WebP Image Optimization
-Plugin URI: https://example.com/plugins/webp-image-optimization/
+Plugin URI: https://github.com/adgardner1392/webp-image-optimization
 Description: Automatically converts uploaded images to WebP format and resizes them.
-Version: 1.1.1
+Version: 1.2
 Author: Adam Gardner
 Author URI: https://github.com/adgardner1392
 License: GPLv2 or later
