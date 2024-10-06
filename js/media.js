@@ -1,14 +1,14 @@
-document.addEventListener('DOMContentLoaded', function () {
-    // Handle the Convert to WebP button click using event delegation
-    document.addEventListener('click', function (e) {
-        // Check if the clicked element has the ID 'convert-to-webp'
-        // or is a child of an element with that ID
-        const button = e.target.closest('#convert-to-webp');
-        if (!button) return; // Exit if the clicked element is not the button
+// js/media.js
 
+jQuery(document).ready(function($) {
+    /**
+     * Handle "Convert to WebP" button click
+     */
+    $(document).on('click', '.convert-to-webp', function(e) {
         e.preventDefault();
 
-        const attachmentId = button.dataset.attachmentId;
+        var button = $(this);
+        var attachmentId = button.data('attachment-id');
 
         if (!attachmentId) {
             alert('Invalid attachment ID.');
@@ -16,59 +16,85 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         // Disable the button to prevent multiple clicks and update its text
-        button.disabled = true;
-        const originalButtonText = button.textContent;
-        button.textContent = 'Converting...';
+        button.prop('disabled', true);
+        var originalButtonText = button.text();
+        button.text('Converting...');
 
         // Prepare the data to be sent in the POST request
-        const data = new URLSearchParams();
-        data.append('action', 'webp_convert_attachment');
-        data.append('nonce', webpImageOptimization.nonce);
-        data.append('attachment_id', attachmentId);
+        var data = {
+            action: 'webp_convert_attachment',
+            nonce: webpImageOptimization.nonce,
+            attachment_id: attachmentId
+        };
 
-        // Send AJAX POST request using fetch
-        fetch(webpImageOptimization.ajax_url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
-            },
-            body: data.toString()
-        })
-        .then(response => response.json())
-        .then(response => {
+        // Send AJAX POST request using jQuery
+        $.post(webpImageOptimization.ajax_url, data, function(response) {
             if (response.success) {
-                alert('Image successfully converted to WebP. The original image has NOT been deleted from your server. Please refresh to view.');
-
-                // Optionally, update the attachment's image preview to the WebP version
-                // This depends on how your Media Library displays images
-                // For example:
-                const mediaItem = document.getElementById('attachment-' + attachmentId);
-                if (mediaItem) {
-                    const img = mediaItem.querySelector('img');
-                    if (img && response.data.webp_url) {
-                        img.src = response.data.webp_url;
-                    }
-                }
-
-                // Replace the button with a "WebP" label
-                const label = document.createElement('span');
-                label.className = 'webp-image-optimization__label';
-                label.style.color = 'green';
-                label.style.fontWeight = 'bold';
-                label.textContent = 'WebP conversion succesful, refresh to view.';
-                button.parentNode.replaceChild(label, button);
+                alert('Image successfully converted to WebP.');
+                // Optionally, refresh the page or update the image preview
+                location.reload(); // Refresh to see changes
             } else {
                 alert('Conversion failed: ' + response.data);
                 // Re-enable the button in case of failure
-                button.disabled = false;
-                button.textContent = originalButtonText;
+                button.prop('disabled', false);
+                button.text(originalButtonText);
             }
-        })
-        .catch(error => {
+        }).fail(function(xhr, status, error) {
             alert('An error occurred: ' + error);
             // Re-enable the button in case of error
-            button.disabled = false;
-            button.textContent = originalButtonText;
+            button.prop('disabled', false);
+            button.text(originalButtonText);
+        });
+    });
+
+    /**
+     * Handle "Restore Original" button click
+     */
+    $(document).on('click', '.restore-original', function(e) {
+        e.preventDefault();
+
+        var button = $(this);
+        var attachmentId = button.data('attachment-id');
+
+        if (!attachmentId) {
+            alert('Invalid attachment ID.');
+            return;
+        }
+
+        // Confirm restoration
+        if (!confirm('Are you sure you want to restore the original image? This will replace the WebP version with the original file.')) {
+            return;
+        }
+
+        // Disable the button to prevent multiple clicks and update its text
+        button.prop('disabled', true);
+        var originalButtonText = button.text();
+        button.text('Restoring...');
+
+        // Prepare the data to be sent in the POST request
+        var data = {
+            action: 'webp_restore_attachment',
+            nonce: webpImageOptimization.nonce,
+            attachment_id: attachmentId
+        };
+
+        // Send AJAX POST request using jQuery
+        $.post(webpImageOptimization.ajax_url, data, function(response) {
+            if (response.success) {
+                alert('Original image successfully restored.');
+                // Optionally, refresh the page or update the image preview
+                location.reload(); // Refresh to see changes
+            } else {
+                alert('Restoration failed: ' + response.data);
+                // Re-enable the button in case of failure
+                button.prop('disabled', false);
+                button.text(originalButtonText);
+            }
+        }).fail(function(xhr, status, error) {
+            alert('An error occurred: ' + error);
+            // Re-enable the button in case of error
+            button.prop('disabled', false);
+            button.text(originalButtonText);
         });
     });
 });
