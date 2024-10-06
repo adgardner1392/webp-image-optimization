@@ -2,8 +2,8 @@
 /*
 Plugin Name: WebP Image Optimization
 Plugin URI: https://github.com/adgardner1392/webp-image-optimization
-Description: Automatically converts uploaded images to WebP format and resizes them.
-Version: 1.2.1
+Description: Automatically converts uploaded images to WebP format and resizes them. Also allows manual conversion from the Media Library.
+Version: 1.3.0
 Author: Adam Gardner
 Author URI: https://github.com/adgardner1392
 License: GPLv2 or later
@@ -19,27 +19,49 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Enqueue admin scripts and styles
  */
 function webp_image_optimization_enqueue_admin_assets( $hook ) {
-    // Check if we are on the plugin's settings page
-    if ( $hook !== 'tools_page_webp-image-optimization' ) {
-        return;
+    // Enqueue on plugin settings page
+    if ( $hook === 'tools_page_webp-image-optimization' ) {
+        // Enqueue CSS
+        wp_enqueue_style(
+            'webp-image-optimization-admin',
+            plugin_dir_url( __FILE__ ) . 'css/admin.css',
+            array(),
+            '1.0'
+        );
+
+        // Enqueue JS
+        wp_enqueue_script(
+            'webp-image-optimization-admin',
+            plugin_dir_url( __FILE__ ) . 'js/admin.js',
+            array( 'jquery' ),
+            '1.0',
+            true
+        );
+
+        // Localize script with AJAX URL and nonce
+        wp_localize_script( 'webp-image-optimization-admin', 'webpImageOptimization', array(
+            'ajax_url' => admin_url( 'admin-ajax.php' ),
+            'nonce'    => wp_create_nonce( 'webp_image_optimization_nonce' ),
+        ));
     }
 
-    // Enqueue CSS
-    wp_enqueue_style(
-        'webp-image-optimization-admin',
-        plugin_dir_url( __FILE__ ) . 'css/admin.css',
-        array(),
-        '1.0'
-    );
+    // Enqueue on Media Library pages
+    if ( in_array( $hook, array( 'upload.php', 'media.php' ), true ) ) {
+        // Enqueue JS for Media Library
+        wp_enqueue_script(
+            'webp-image-optimization-media',
+            plugin_dir_url( __FILE__ ) . 'js/media.js',
+            array( 'jquery' ),
+            '1.0',
+            true
+        );
 
-    // Enqueue JS
-    wp_enqueue_script(
-        'webp-image-optimization-admin',
-        plugin_dir_url( __FILE__ ) . 'js/admin.js',
-        array(),
-        '1.0',
-        true
-    );
+        // Localize script with AJAX URL and nonce
+        wp_localize_script( 'webp-image-optimization-media', 'webpImageOptimization', array(
+            'ajax_url' => admin_url( 'admin-ajax.php' ),
+            'nonce'    => wp_create_nonce( 'webp_image_optimization_nonce' ),
+        ));
+    }
 }
 add_action( 'admin_enqueue_scripts', 'webp_image_optimization_enqueue_admin_assets' );
 
@@ -48,12 +70,12 @@ add_action( 'admin_enqueue_scripts', 'webp_image_optimization_enqueue_admin_asse
  */
 function webp_image_optimization_add_settings_page() {
     add_submenu_page(
-        'tools.php', // Parent slug
-        __( 'WebP Image Optimization Settings', 'webp-image-optimization' ), // Page title
-        __( 'WebP Image Optimization', 'webp-image-optimization' ), // Menu title
-        'manage_options', // Capability
-        'webp-image-optimization', // Menu slug
-        'webp_image_optimization_render_settings_page' // Callback function
+        'tools.php',
+        __( 'WebP Image Optimization Settings', 'webp-image-optimization' ),
+        __( 'WebP Image Optimization', 'webp-image-optimization' ),
+        'manage_options',
+        'webp-image-optimization',
+        'webp_image_optimization_render_settings_page'
     );
 }
 add_action( 'admin_menu', 'webp_image_optimization_add_settings_page' );
@@ -65,7 +87,7 @@ function webp_image_optimization_register_settings() {
     register_setting(
         'webp_image_optimization_settings_group',
         'webp_image_optimization_settings',
-        'webp_image_optimization_sanitize_settings' // Sanitize callback
+        'webp_image_optimization_sanitize_settings'
     );
 
     add_settings_section(
@@ -111,10 +133,19 @@ function webp_image_optimization_register_settings() {
         'webp_image_optimization_settings_section'
     );
 
+    // WebP Quality field
+    add_settings_field(
+        'webp_quality',
+        __( 'WebP Quality (0-100)', 'webp-image-optimization' ),
+        'webp_image_optimization_webp_quality_render',
+        'webp_image_optimization_settings',
+        'webp_image_optimization_settings_section'
+    );
+
     // Don't Convert JPEG checkbox
     add_settings_field(
         'dont_convert_jpeg',
-        __( 'Don\'t convert JPEG images to WebP format', 'webp-image-optimization' ),
+        __( 'Disable conversion of JPEG images to WebP format', 'webp-image-optimization' ),
         'webp_image_optimization_dont_convert_jpeg_render',
         'webp_image_optimization_settings',
         'webp_image_optimization_settings_section'
@@ -123,12 +154,11 @@ function webp_image_optimization_register_settings() {
     // Don't Convert PNG checkbox
     add_settings_field(
         'dont_convert_png',
-        __( 'Don\'t convert PNG images to WebP format', 'webp-image-optimization' ),
+        __( 'Disable conversion of PNG images to WebP format', 'webp-image-optimization' ),
         'webp_image_optimization_dont_convert_png_render',
         'webp_image_optimization_settings',
         'webp_image_optimization_settings_section'
     );
-
 }
 add_action( 'admin_init', 'webp_image_optimization_register_settings' );
 
@@ -174,6 +204,17 @@ function webp_image_optimization_sanitize_settings( $input ) {
         $output['png_compression'] = $png_compression;
     } else {
         $output['png_compression'] = 6; // Default value
+    }
+
+    // Sanitize WebP Quality
+    if ( isset( $input['webp_quality'] ) ) {
+        $webp_quality = intval( $input['webp_quality'] );
+        if ( $webp_quality < 0 || $webp_quality > 100 ) {
+            $webp_quality = 80; // Default value
+        }
+        $output['webp_quality'] = $webp_quality;
+    } else {
+        $output['webp_quality'] = 80; // Default value
     }
 
     // Sanitize Don't Convert JPEG checkbox
@@ -225,7 +266,6 @@ function webp_image_optimization_jpeg_quality_render() {
     <?php
 }
 
-
 /**
  * Render PNG Compression Level field
  */
@@ -237,6 +277,21 @@ function webp_image_optimization_png_compression_render() {
         <input type="range" class="webp-settings__slider" id="png_compression_range" value="<?php echo esc_attr( $png_compression ); ?>" min="0" max="9" />
         <input type="number" class="webp-settings__input" id="png_compression_number" name="webp_image_optimization_settings[png_compression]" value="<?php echo esc_attr( $png_compression ); ?>" min="0" max="9" />
         <span class="webp-settings__value" id="png_compression_value"><?php echo esc_attr( $png_compression ); ?></span>
+    </div>
+    <?php
+}
+
+/**
+ * Render WebP Quality field
+ */
+function webp_image_optimization_webp_quality_render() {
+    $options = get_option( 'webp_image_optimization_settings' );
+    $webp_quality = isset( $options['webp_quality'] ) ? esc_attr( $options['webp_quality'] ) : '80';
+    ?>
+    <div class="webp-settings__field webp-settings__field--webp-quality">
+        <input type="range" class="webp-settings__slider" id="webp_quality_range" value="<?php echo esc_attr( $webp_quality ); ?>" min="0" max="100" />
+        <input type="number" class="webp-settings__input" id="webp_quality_number" name="webp_image_optimization_settings[webp_quality]" value="<?php echo esc_attr( $webp_quality ); ?>" min="0" max="100" />
+        <span class="webp-settings__value" id="webp_quality_value"><?php echo esc_html( $webp_quality ); ?></span>
     </div>
     <?php
 }
@@ -288,11 +343,11 @@ function webp_image_optimization_handle_upload( $upload, $context ) {
 
     // Get the settings
     $options = get_option( 'webp_image_optimization_settings' );
-    $max_width       = isset( $options['max_width'] ) ? intval( $options['max_width'] ) : 1500; // Default to 1500 if not set
-    $max_height      = isset( $options['max_height'] ) ? intval( $options['max_height'] ) : 1500; // Default to 1500 if not set
+    $max_width       = isset( $options['max_width'] ) ? intval( $options['max_width'] ) : 1500;
+    $max_height      = isset( $options['max_height'] ) ? intval( $options['max_height'] ) : 1500;
 
     // Resize the image
-    $resized_image = webp_image_optimization_resize_image( $file_path, $max_width, $max_height ); // Use settings values
+    $resized_image = webp_image_optimization_resize_image( $file_path, $max_width, $max_height );
     if ( $resized_image ) {
         $file_path = $resized_image;
     }
@@ -316,7 +371,7 @@ function webp_image_optimization_handle_upload( $upload, $context ) {
 }
 
 /**
- * Convert image to WebP format.
+ * Convert image to WebP format using Imagick or GD.
  */
 function webp_image_optimization_convert_to_webp( $file ) {
     $file_info = pathinfo( $file );
@@ -337,32 +392,82 @@ function webp_image_optimization_convert_to_webp( $file ) {
             if ( ! empty( $options['dont_convert_jpeg'] ) ) {
                 return false; // Skip conversion
             }
-            $image = imagecreatefromjpeg( $file );
             break;
         case 'png':
             if ( ! empty( $options['dont_convert_png'] ) ) {
                 return false; // Skip conversion
             }
+            break;
+        default:
+            return false;
+    }
+
+    // Define the path for the WebP file
+    $webp_file = $file_info['dirname'] . '/' . $file_info['filename'] . '.webp';
+
+    // Determine WebP quality
+    $webp_quality = isset( $options['webp_quality'] ) ? intval( $options['webp_quality'] ) : 80;
+
+    // Use Imagick if available
+    if ( class_exists( 'Imagick' ) ) {
+        try {
+            $image = new Imagick( $file );
+            $image->setImageFormat( 'webp' );
+            $image->setImageCompressionQuality( $webp_quality );
+
+            // Preserve transparency for PNGs
+            if ( in_array( $extension, array( 'png' ), true ) ) {
+                $image->setImageAlphaChannel( Imagick::ALPHACHANNEL_ACTIVATE );
+            }
+
+            if ( $image->writeImage( $webp_file ) ) {
+                $image->destroy();
+                return $webp_file;
+            }
+
+            $image->destroy();
+            error_log( 'WebP Image Optimization: Imagick failed to convert ' . $file . ' to WebP.' );
+            return false;
+        } catch ( Exception $e ) {
+            error_log( 'WebP Image Optimization: Imagick exception for ' . $file . ' - ' . $e->getMessage() );
+            // Fallback to GD
+        }
+    }
+
+    // Fallback to GD
+    switch ( $extension ) {
+        case 'jpeg':
+        case 'jpg':
+            $image = imagecreatefromjpeg( $file );
+            break;
+        case 'png':
             $image = imagecreatefrompng( $file );
+            if ( !$image ) {
+                error_log( 'WebP Image Optimization: Failed to create image resource from PNG ' . $file );
+                return false;
+            }
+            // Preserve transparency
+            imagepalettetotruecolor( $image );
+            imagealphablending( $image, true );
+            imagesavealpha( $image, true );
             break;
         default:
             return false;
     }
 
     if ( ! $image ) {
+        error_log( 'WebP Image Optimization: Failed to create image resource from ' . $file );
         return false;
     }
 
-    // Define the path for the WebP file
-    $webp_file = $file_info['dirname'] . '/' . $file_info['filename'] . '.webp';
-
     // Convert the image to WebP and save
-    if ( imagewebp( $image, $webp_file, 80 ) ) { // Quality set to 80
+    if ( imagewebp( $image, $webp_file, $webp_quality ) ) { // Quality set from settings
         imagedestroy( $image );
         return $webp_file;
     }
 
     imagedestroy( $image );
+    error_log( 'WebP Image Optimization: imagewebp failed for ' . $file );
     return false;
 }
 
@@ -418,8 +523,8 @@ function webp_image_optimization_resize_image( $file, $max_width, $max_height ) 
 
     // Get settings
     $options = get_option( 'webp_image_optimization_settings' );
-    $jpeg_quality    = isset( $options['jpeg_quality'] ) ? intval( $options['jpeg_quality'] ) : 90; // Default to 90
-    $png_compression = isset( $options['png_compression'] ) ? intval( $options['png_compression'] ) : 6; // Default to 6
+    $jpeg_quality    = isset( $options['jpeg_quality'] ) ? intval( $options['jpeg_quality'] ) : 90;
+    $png_compression = isset( $options['png_compression'] ) ? intval( $options['png_compression'] ) : 6;
 
     // Save resized image
     switch ( $mime_type ) {
@@ -436,4 +541,131 @@ function webp_image_optimization_resize_image( $file, $max_width, $max_height ) 
     imagedestroy( $image_resized );
 
     return $file;
+}
+
+/**
+ * Add Convert to WebP button to attachment edit fields
+ */
+function webp_image_optimization_add_convert_button( $form_fields, $post ) {
+    // Check if the attachment is an image
+    if ( strpos( $post->post_mime_type, 'image/' ) !== false ) {
+        // Check if the image is already WebP
+        $file_info = pathinfo( get_attached_file( $post->ID ) );
+        $extension = strtolower( $file_info['extension'] );
+        if ( $extension !== 'webp' ) {
+            $form_fields['convert_to_webp'] = array(
+                'label' => esc_html__( 'Convert to WebP', 'webp-image-optimization' ),
+                'input' => 'html',
+                'html'  => '<button type="button" class="button" id="convert-to-webp" data-attachment-id="' . esc_attr( $post->ID ) . '">' . esc_html__( 'Convert to WebP', 'webp-image-optimization' ) . '</button>',
+            );
+        }
+    }
+    return $form_fields;
+}
+add_filter( 'attachment_fields_to_edit', 'webp_image_optimization_add_convert_button', 10, 2 );
+
+/**
+ * Allow WebP uploads
+ */
+function webp_image_optimization_allow_webp_uploads( $mimes ) {
+    $mimes['webp'] = 'image/webp';
+    return $mimes;
+}
+add_filter( 'upload_mimes', 'webp_image_optimization_allow_webp_uploads' );
+
+/**
+ * Ensure WebP images have the correct MIME type
+ */
+function webp_image_optimization_fix_webp_mime_type( $data, $file, $filename, $mimes ) {
+    $ext = strtolower( pathinfo( $filename, PATHINFO_EXTENSION ) );
+    if ( 'webp' === $ext ) {
+        $data['type'] = 'image/webp';
+        $data['ext']  = 'webp';
+    }
+    return $data;
+}
+add_filter( 'wp_check_filetype_and_ext', 'webp_image_optimization_fix_webp_mime_type', 10, 4 );
+
+/**
+ * Register AJAX handler for converting attachments to WebP and replacing the original
+ */
+add_action( 'wp_ajax_webp_convert_attachment', 'webp_image_optimization_ajax_convert_attachment_replace' );
+
+function webp_image_optimization_ajax_convert_attachment_replace() {
+    // Verify nonce
+    check_ajax_referer( 'webp_image_optimization_nonce', 'nonce' );
+
+    // Check user capabilities
+    if ( ! current_user_can( 'manage_options' ) ) {
+        wp_send_json_error( 'You do not have permission to perform this action.' );
+    }
+
+    // Get attachment ID
+    $attachment_id = isset( $_POST['attachment_id'] ) ? intval( $_POST['attachment_id'] ) : 0;
+
+    if ( ! $attachment_id ) {
+        wp_send_json_error( 'Invalid attachment ID.' );
+    }
+
+    // Get file path
+    $original_file = get_attached_file( $attachment_id );
+
+    if ( ! $original_file || ! file_exists( $original_file ) ) {
+        wp_send_json_error( 'Original file does not exist.' );
+    }
+
+    // Get attachment MIME type
+    $mime_type = get_post_mime_type( $attachment_id );
+
+    // Only process images
+    if ( strpos( $mime_type, 'image/' ) === false ) {
+        wp_send_json_error( 'The selected attachment is not an image.' );
+    }
+
+    // Check if already converted to WebP by checking if the file extension is .webp
+    $file_info = pathinfo( $original_file );
+    $extension = strtolower( $file_info['extension'] );
+    if ( $extension === 'webp' ) {
+        wp_send_json_error( 'The selected attachment is already a WebP image.' );
+    }
+
+    // Perform the conversion using existing function
+    $webp_converted_file = webp_image_optimization_convert_to_webp( $original_file );
+
+    if ( ! $webp_converted_file ) {
+        wp_send_json_error( 'Conversion to WebP failed. Check error logs for details.' );
+    }
+
+    // Ensure WebP file exists and is non-zero
+    if ( ! file_exists( $webp_converted_file ) || filesize( $webp_converted_file ) === 0 ) {
+        wp_send_json_error( 'WebP file was not created successfully.' );
+    }
+
+    // Define paths
+    $upload_dir = wp_upload_dir();
+    $relative_webp_path = str_replace( $upload_dir['basedir'] . '/', '', $webp_converted_file );
+    $webp_url = $upload_dir['baseurl'] . '/' . $relative_webp_path;
+
+    // Update the attachment's '_wp_attached_file' meta to point to WebP
+    update_post_meta( $attachment_id, '_wp_attached_file', $relative_webp_path );
+
+    // Update the attachment's 'guid' and 'post_mime_type'
+    wp_update_post( array(
+        'ID' => $attachment_id,
+        'guid' => $webp_url,
+        'post_mime_type' => 'image/webp',
+    ) );
+
+    // Regenerate attachment metadata for WebP
+    require_once( ABSPATH . 'wp-admin/includes/image.php' );
+    $metadata = wp_generate_attachment_metadata( $attachment_id, $webp_converted_file );
+    if ( ! $metadata ) {
+        wp_send_json_error( 'Failed to regenerate attachment metadata.' );
+    }
+    wp_update_attachment_metadata( $attachment_id, $metadata );
+
+    // Remove association with previous WebP attachment if any
+    delete_post_meta( $attachment_id, '_webp_image_optimization_webp' );
+
+    wp_send_json_success( array( 'webp_url' => $webp_url ) );
 }

@@ -1,25 +1,29 @@
 === WebP Image Optimization ===
 
-Contributors: adgardner1392
-Tags: webp, image optimization, image conversion, jpeg, png
-Requires at least: 5.0
-Tested up to: 6.6.2
-Requires PHP: 7.2
-Stable tag: 1.2.1
-License: GPLv2 or later
+Contributors: adgardner1392  
+Tags: webp, image optimization, image conversion, jpeg, png  
+Requires at least: 5.0  
+Tested up to: 6.6.2  
+Requires PHP: 7.2  
+Stable tag: 1.3.0  
+License: GPLv2 or later  
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Automatically converts uploaded JPEG and PNG images to WebP format and resizes them according to user-defined settings.
+Automatically converts uploaded JPEG and PNG images to WebP format, and allows conversion of existing images directly from the Media Library.
 
 == Description ==
 
-**WebP Image Optimization** enhances your website's performance by converting uploaded JPEG and PNG images to the more efficient WebP format. It also allows you to resize images to specified maximum dimensions and adjust image quality and compression settings.
+**WebP Image Optimization** enhances your website's performance by converting uploaded JPEG and PNG images to the more efficient WebP format. It also allows you to resize images to specified maximum dimensions and adjust image quality and compression settings. With the latest update, you can now convert existing images directly from the Media Library, streamlining the optimization process.
 
 **Key Features:**
 
 - **Automatic Conversion to WebP:**
   - Converts JPEG and PNG images to WebP format upon upload.
   - Option to exclude JPEG and/or PNG images from conversion.
+
+- **Media Library Integration:**
+  - **New in v1.3:** Added WebP conversion option directly within the Media Library.
+  - Easily convert existing images to WebP without re-uploading.
 
 - **Image Resizing:**
   - Resize images that exceed user-defined maximum width and height.
@@ -52,6 +56,9 @@ Automatically converts uploaded JPEG and PNG images to WebP format and resizes t
   - Flexible settings allow customization based on specific needs.
   - Ability to maintain original image formats if desired.
 
+- **Enhanced Convenience:**
+  - Convert existing images directly from the Media Library, saving time and effort.
+
 == Installation ==
 
 1. **Upload the Plugin:**
@@ -65,7 +72,12 @@ Automatically converts uploaded JPEG and PNG images to WebP format and resizes t
    - Navigate to **Tools > WebP Image Optimization** to access the settings page.
    - Set your desired maximum image dimensions, JPEG quality, PNG compression level, and conversion preferences.
 
-4. **Enjoy Optimized Images:**
+4. **Optimize Existing Images:**
+   - Go to the **Media Library**.
+   - Select images you wish to convert to WebP.
+   - Click the newly added **Convert to WebP** option to optimize your existing images.
+
+5. **Enjoy Optimized Images:**
    - Upload new images via the Media Library or post editor.
    - The plugin will automatically resize and convert images based on your settings.
 
@@ -73,11 +85,11 @@ Automatically converts uploaded JPEG and PNG images to WebP format and resizes t
 
 = Does this plugin convert existing images in my media library? =
 
-No, the plugin only processes images uploaded after the plugin has been activated. Existing images will remain unchanged.
+**Yes, starting from version 1.3,** you can convert existing JPEG and PNG images to WebP directly from the Media Library using the new conversion option.
 
 = What happens to the original JPEG or PNG files after conversion? =
 
-By default, the original images remain on the server.
+By default, the original images remain on the server. You can choose to delete them manually if desired.
 
 = Can I exclude certain image types from conversion to WebP? =
 
@@ -89,7 +101,7 @@ The plugin requires the GD library with WebP support enabled on your server. Mos
 
 = Will the converted WebP images work on all browsers? =
 
-Most modern browsers support WebP images. For browsers that do not support WebP, you may need to implement a fallback mechanism. This plugin does not provide fallback functionality.
+Most modern browsers support WebP images. For browsers that do not support WebP, the plugin ensures that the original image formats are served as fallbacks.
 
 = Can I adjust the image quality and compression settings? =
 
@@ -99,23 +111,30 @@ Yes, you can set the JPEG quality (0-100) and PNG compression level (0-9) via th
 
 1. **Settings Page - Desktop View**
 2. **Settings Page - Mobile View**
+3. **Media Library - WebP Conversion Option**
 
 == Changelog ==
 
-= 1.2 =
+= 1.3.0 =
+
+- **Media Library Integration:**
+  - Added WebP conversion option directly within the Media Library.
+  - Enables users to convert existing JPEG and PNG images to WebP without re-uploading.
+
+= 1.2.0 =
 
 - Amend incorrect URI links.
 
-= 1.1 =
+= 1.1.0 =
 
-- Security Fixes: Escaped all dynamic output to comply with WordPress standards - v1.1
+- **Security Fixes:**
+  - Escaped all dynamic output to comply with WordPress standards.
+  - Replaced `_e()` with `esc_html_e()` for translatable strings in settings page.
+  - Escaped input values using `esc_attr()` in form fields.
+  - Escaped plain text output using `esc_html()` where applicable.
+  - Ensured all outputs are properly escaped to prevent XSS vulnerabilities.
 
-- Replaced `_e()` with `esc_html_e()` for translatable strings in settings page.
-- Escaped input values using `esc_attr()` in form fields.
-- Escaped plain text output using `esc_html()` where applicable.
-- Ensured all outputs are properly escaped to prevent XSS vulnerabilities.
-
-= 1.0 =
+= 1.0.0 =
 
 - Initial release.
 - Automatic conversion of JPEG and PNG images to WebP format.
@@ -130,10 +149,21 @@ Yes, you can set the JPEG quality (0-100) and PNG compression level (0-9) via th
 
 == Upgrade Notice ==
 
-= 1.0 =
+= 1.3.0 =
 
-- Ensure your server supports the GD library with WebP support.
-- Review and adjust settings after activation to suit your preferences.
+- **New Feature:** Added the ability to convert existing images directly from the Media Library. You can now optimize your existing JPEG and PNG images to WebP without re-uploading them.
+
+= 1.2.0 =
+
+- Amend incorrect URI links.
+
+= 1.1.0 =
+
+- Security improvements to ensure safer operations.
+
+= 1.0.0 =
+
+- Initial release with automatic image conversion and resizing features.
 
 == Roadmap ==
 
