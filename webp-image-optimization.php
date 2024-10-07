@@ -3,7 +3,7 @@
 Plugin Name: WebP Image Optimization
 Plugin URI: https://github.com/adgardner1392/webp-image-optimization
 Description: Automatically converts uploaded images to WebP format and resizes them. Also allows manual conversion from the Media Library with undo functionality.
-Version: 1.4.0
+Version: 1.3.1
 Author: Adam Gardner
 Author URI: https://github.com/adgardner1392
 License: GPLv2 or later
@@ -26,7 +26,7 @@ function webp_image_optimization_enqueue_admin_assets( $hook ) {
             'webp-image-optimization-admin',
             plugin_dir_url( __FILE__ ) . 'css/admin.css',
             array(),
-            '1.4.0'
+            '1.3.1'
         );
 
         // Enqueue JS
@@ -34,7 +34,7 @@ function webp_image_optimization_enqueue_admin_assets( $hook ) {
             'webp-image-optimization-admin',
             plugin_dir_url( __FILE__ ) . 'js/admin.js',
             array( 'jquery' ),
-            '1.4.0',
+            '1.3.1',
             true
         );
 
@@ -52,7 +52,7 @@ function webp_image_optimization_enqueue_admin_assets( $hook ) {
             'webp-image-optimization-media',
             plugin_dir_url( __FILE__ ) . 'js/media.js',
             array( 'jquery' ),
-            '1.4.0',
+            '1.3.1',
             true
         );
 
@@ -427,14 +427,7 @@ function webp_image_optimization_convert_to_webp( $file ) {
 
             if ( $image->writeImage( $webp_file ) ) {
                 $image->destroy();
-
-                // Get attachment ID
-                $attachment_id = webp_image_optimization_get_attachment_id_by_file_path( $file );
-                if ( $attachment_id ) {
-                    // Store the original file path in attachment meta
-                    update_post_meta( $attachment_id, '_webp_original_file', $file );
-                }
-
+                
                 return $webp_file;
             }
 
@@ -476,13 +469,6 @@ function webp_image_optimization_convert_to_webp( $file ) {
     // Convert the image to WebP and save
     if ( imagewebp( $image, $webp_file, $webp_quality ) ) { // Quality set from settings
         imagedestroy( $image );
-
-        // Get attachment ID
-        $attachment_id = webp_image_optimization_get_attachment_id_by_file_path( $file );
-        if ( $attachment_id ) {
-            // Store the original file path in attachment meta
-            update_post_meta( $attachment_id, '_webp_original_file', $file );
-        }
 
         return $webp_file;
     }
@@ -565,26 +551,7 @@ function webp_image_optimization_resize_image( $file, $max_width, $max_height ) 
 }
 
 /**
- * Get attachment ID by file path
- */
-function webp_image_optimization_get_attachment_id_by_file_path( $file_path ) {
-    global $wpdb;
-    $upload_dir = wp_upload_dir();
-
-    $file_path = str_replace( $upload_dir['basedir'] . '/', '', $file_path );
-
-    $attachment = $wpdb->get_var(
-        $wpdb->prepare(
-            "SELECT ID FROM $wpdb->posts WHERE guid LIKE %s AND post_type = 'attachment'",
-            '%' . $file_path
-        )
-    );
-
-    return $attachment ? intval( $attachment ) : 0;
-}
-
-/**
- * Add Convert to WebP and Restore Original buttons to attachment edit fields
+ * Add Convert to WebP button to attachment edit fields
  */
 function webp_image_optimization_add_attachment_buttons( $form_fields, $post ) {
     // Check if the attachment is an image
@@ -598,13 +565,6 @@ function webp_image_optimization_add_attachment_buttons( $form_fields, $post ) {
                 'label' => esc_html__( 'Convert to WebP', 'webp-image-optimization' ),
                 'input' => 'html',
                 'html'  => '<button type="button" class="button convert-to-webp" data-attachment-id="' . esc_attr( $post->ID ) . '">' . esc_html__( 'Convert to WebP', 'webp-image-optimization' ) . '</button>',
-            );
-        } else {
-            // Add Restore Original button
-            $form_fields['restore_original'] = array(
-                'label' => esc_html__( 'Restore Original', 'webp-image-optimization' ),
-                'input' => 'html',
-                'html'  => '<button type="button" class="button restore-original" data-attachment-id="' . esc_attr( $post->ID ) . '">' . esc_html__( 'Restore Original', 'webp-image-optimization' ) . '</button>',
             );
         }
     }
@@ -694,78 +654,7 @@ function webp_image_optimization_ajax_convert_attachment_replace() {
 }
 
 /**
- * Register AJAX handler for restoring original attachments
- */
-add_action( 'wp_ajax_webp_restore_attachment', 'webp_image_optimization_ajax_restore_attachment' );
-
-function webp_image_optimization_ajax_restore_attachment() {
-    // Verify nonce
-    check_ajax_referer( 'webp_image_optimization_nonce', 'nonce' );
-
-    // Check user capabilities
-    if ( ! current_user_can( 'manage_options' ) ) {
-        wp_send_json_error( 'You do not have permission to perform this action.' );
-    }
-
-    // Get attachment ID
-    $attachment_id = isset( $_POST['attachment_id'] ) ? intval( $_POST['attachment_id'] ) : 0;
-
-    if ( ! $attachment_id ) {
-        wp_send_json_error( 'Invalid attachment ID.' );
-    }
-
-    // Get WebP file path
-    $webp_file = get_attached_file( $attachment_id );
-
-    if ( ! $webp_file || ! file_exists( $webp_file ) ) {
-        wp_send_json_error( 'WebP file does not exist.' );
-    }
-
-    // Ensure the file is a WebP image
-    $mime_type = get_post_mime_type( $attachment_id );
-    if ( $mime_type !== 'image/webp' ) {
-        wp_send_json_error( 'The selected attachment is not a WebP image.' );
-    }
-
-    // Retrieve the original file path from meta
-    $original_file = get_post_meta( $attachment_id, '_webp_original_file', true );
-
-    if ( ! $original_file || ! file_exists( $original_file ) ) {
-        // Log the original file path for debugging
-        error_log( 'WebP Image Optimization: Restoration failed. Original file path: ' . print_r( $original_file, true ) );
-        wp_send_json_error( 'Original file does not exist.' );
-    }
-
-    // Log the original file path for debugging
-    error_log( 'WebP Image Optimization: Attempting to restore original file: ' . $original_file );
-
-    // Update attachment to point back to the original file
-    $upload_dir = wp_upload_dir();
-    $relative_original_path = str_replace( $upload_dir['basedir'] . '/', '', $original_file );
-
-    // Update the '_wp_attached_file' meta to point to the original file
-    update_post_meta( $attachment_id, '_wp_attached_file', $relative_original_path );
-
-    // Update the attachment's 'guid' and 'post_mime_type'
-    $original_url = $upload_dir['baseurl'] . '/' . $relative_original_path;
-    wp_update_post( array(
-        'ID'             => $attachment_id,
-        'guid'           => $original_url,
-        'post_mime_type' => wp_check_filetype( $original_file )['type'],
-    ) );
-
-    // Optionally, delete the WebP file
-    // unlink( $webp_file );
-
-    // Optionally, remove the '_webp_original_file' meta
-    delete_post_meta( $attachment_id, '_webp_original_file' );
-
-    wp_send_json_success( 'Original image restored successfully.' );
-}
-
-
-/**
- * Add Convert to WebP and Restore Original buttons to the Media Library
+ * Add Convert to WebP button to the Media Library
  */
 function webp_image_optimization_add_media_buttons( $actions, $post ) {
     if ( strpos( $post->post_mime_type, 'image/' ) !== false ) {
@@ -774,8 +663,6 @@ function webp_image_optimization_add_media_buttons( $actions, $post ) {
 
         if ( $extension !== 'webp' ) {
             $actions['convert_to_webp'] = '<a href="#" class="convert-to-webp button" data-attachment-id="' . esc_attr( $post->ID ) . '">' . __( 'Convert to WebP', 'webp-image-optimization' ) . '</a>';
-        } else {
-            $actions['restore_original'] = '<a href="#" class="restore-original button" data-attachment-id="' . esc_attr( $post->ID ) . '">' . __( 'Restore Original', 'webp-image-optimization' ) . '</a>';
         }
     }
     return $actions;
@@ -838,69 +725,4 @@ function webp_image_optimization_ajax_convert_media_attachment() {
     ) );
 
     wp_send_json_success( array( 'webp_url' => $webp_url ) );
-}
-
-/**
- * Register AJAX handler for restoring original attachments from the Media Library
- */
-add_action( 'wp_ajax_webp_restore_media_attachment', 'webp_image_optimization_ajax_restore_media_attachment' );
-
-function webp_image_optimization_ajax_restore_media_attachment() {
-    // Verify nonce
-    check_ajax_referer( 'webp_image_optimization_nonce', 'nonce' );
-
-    // Check user capabilities
-    if ( ! current_user_can( 'manage_options' ) ) {
-        wp_send_json_error( 'You do not have permission to perform this action.' );
-    }
-
-    // Get attachment ID
-    $attachment_id = isset( $_POST['attachment_id'] ) ? intval( $_POST['attachment_id'] ) : 0;
-
-    if ( ! $attachment_id ) {
-        wp_send_json_error( 'Invalid attachment ID.' );
-    }
-
-    // Get WebP file path
-    $webp_file = get_attached_file( $attachment_id );
-
-    if ( ! $webp_file || ! file_exists( $webp_file ) ) {
-        wp_send_json_error( 'WebP file does not exist.' );
-    }
-
-    // Ensure the file is a WebP image
-    $mime_type = get_post_mime_type( $attachment_id );
-    if ( $mime_type !== 'image/webp' ) {
-        wp_send_json_error( 'The selected attachment is not a WebP image.' );
-    }
-
-    // Retrieve the original file path from meta
-    $original_file = get_post_meta( $attachment_id, '_webp_original_file', true );
-
-    if ( ! $original_file || ! file_exists( $original_file ) ) {
-        wp_send_json_error( 'Original file does not exist.' );
-    }
-
-    // Define paths
-    $upload_dir = wp_upload_dir();
-    $relative_original_path = str_replace( $upload_dir['basedir'] . '/', '', $original_file );
-
-    // Update the '_wp_attached_file' meta to point to the original file
-    update_post_meta( $attachment_id, '_wp_attached_file', $relative_original_path );
-
-    // Update the attachment's 'guid' and 'post_mime_type'
-    $original_url = $upload_dir['baseurl'] . '/' . $relative_original_path;
-    wp_update_post( array(
-        'ID'             => $attachment_id,
-        'guid'           => $original_url,
-        'post_mime_type' => wp_check_filetype( $original_file )['type'],
-    ) );
-
-    // Optionally, delete the WebP file
-    // unlink( $webp_file );
-
-    // Optionally, remove the '_webp_original_file' meta
-    delete_post_meta( $attachment_id, '_webp_original_file' );
-
-    wp_send_json_success( 'Original image restored successfully.' );
 }
