@@ -5,7 +5,7 @@ Tags: webp, image optimization, image conversion, jpeg, png
 Requires at least: 5.0  
 Tested up to: 6.6.2  
 Requires PHP: 7.2  
-Stable tag: 1.4.0
+Stable tag: 1.4.1
 License: GPLv2 or later  
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -127,6 +127,11 @@ After conversion, the plugin displays the original and WebP file sizes in a read
 
 == Changelog ==
 
+= 1.4.1 =
+
+* Replaced jQuery usage with vanilla JavaScript for the WebP conversion button in the media library.
+* Improved performance and compatibility by removing dependency on jQuery.
+
 = 1.4.0 =
 
 - **New Feature:** Added the ability to display original and WebP file sizes in a readable format (KB/MB) along with the amount saved in both bytes and percentage.
@@ -170,6 +175,10 @@ After conversion, the plugin displays the original and WebP file sizes in a read
 - Follows WordPress coding standards and best practices.
 
 == Upgrade Notice ==
+
+= 1.4.1 =
+* Replaced jQuery usage with vanilla JavaScript for the WebP conversion button in the media library.
+* Improved performance and compatibility by removing dependency on jQuery.
 
 = 1.4.0 =
 
