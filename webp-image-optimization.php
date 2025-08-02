@@ -3,7 +3,7 @@
 Plugin Name: WebP Image Optimization
 Plugin URI: https://github.com/adgardner1392/webp-image-optimization
 Description: Automatically converts uploaded images to WebP format and resizes them. Also allows manual conversion from the Media Library with undo functionality.
-Version: 1.4.0
+Version: 1.4.1
 Author: Adam Gardner
 Author URI: https://github.com/adgardner1392
 License: GPLv2 or later
@@ -63,7 +63,7 @@ class WebP_Image_Optimization {
                 'webp-image-optimization-admin',
                 plugin_dir_url( __FILE__ ) . 'css/admin.css',
                 array(),
-                '1.3.1'
+                '1.4.1'
             );
 
             // Enqueue JS
@@ -71,7 +71,7 @@ class WebP_Image_Optimization {
                 'webp-image-optimization-admin',
                 plugin_dir_url( __FILE__ ) . 'js/admin.js',
                 array( 'jquery' ),
-                '1.3.1',
+                '1.4.1',
                 true
             );
 
@@ -89,7 +89,7 @@ class WebP_Image_Optimization {
                 'webp-image-optimization-media',
                 plugin_dir_url( __FILE__ ) . 'js/media.js',
                 array( 'jquery' ),
-                '1.3.1',
+                '1.4.1',
                 true
             );
 

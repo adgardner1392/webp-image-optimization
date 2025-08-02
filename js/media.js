@@ -1,49 +1,56 @@
 // js/media.js
 
-jQuery(document).ready(function($) {
+document.addEventListener('DOMContentLoaded', function () {
     /**
      * Handle "Convert to WebP" button click
      */
-    $(document).on('click', '.convert-to-webp', function(e) {
+    document.addEventListener('click', function (e) {
+        const button = e.target.closest('.convert-to-webp');
+        if (!button) return;
+
         e.preventDefault();
 
-        var button = $(this);
-        var attachmentId = button.data('attachment-id');
+        const attachmentId = button.getAttribute('data-attachment-id');
 
         if (!attachmentId) {
             alert('Invalid attachment ID.');
             return;
         }
 
-        // Disable the button to prevent multiple clicks and update its text
-        button.prop('disabled', true);
-        var originalButtonText = button.text();
-        button.text('Converting...');
+        // Disable the button and store original text
+        button.disabled = true;
+        const originalButtonText = button.textContent;
+        button.textContent = 'Converting...';
 
-        // Prepare the data to be sent in the POST request
-        var data = {
-            action: 'webp_convert_attachment',
-            nonce: webpImageOptimization.nonce,
-            attachment_id: attachmentId
-        };
+        // Prepare the data
+        const data = new URLSearchParams();
+        data.append('action', 'webp_convert_attachment');
+        data.append('nonce', webpImageOptimization.nonce);
+        data.append('attachment_id', attachmentId);
 
-        // Send AJAX POST request using jQuery
-        $.post(webpImageOptimization.ajax_url, data, function(response) {
+        // Send AJAX request using fetch
+        fetch(webpImageOptimization.ajax_url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: data.toString()
+        })
+        .then(response => response.json())
+        .then(response => {
             if (response.success) {
                 alert('Image successfully converted to WebP.');
-                // Optionally, refresh the page or update the image preview
-                location.reload(); // Refresh to see changes
+                location.reload();
             } else {
                 alert('Conversion failed: ' + response.data);
-                // Re-enable the button in case of failure
-                button.prop('disabled', false);
-                button.text(originalButtonText);
+                button.disabled = false;
+                button.textContent = originalButtonText;
             }
-        }).fail(function(xhr, status, error) {
+        })
+        .catch(error => {
             alert('An error occurred: ' + error);
-            // Re-enable the button in case of error
-            button.prop('disabled', false);
-            button.text(originalButtonText);
+            button.disabled = false;
+            button.textContent = originalButtonText;
         });
     });
 });
