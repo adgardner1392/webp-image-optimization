@@ -3,7 +3,7 @@
 Plugin Name: WebP Image Optimization
 Plugin URI: https://github.com/adgardner1392/webp-image-optimization
 Description: Automatically converts uploaded images to WebP format and resizes them. Also allows manual conversion from the Media Library with undo functionality.
-Version: 1.4.1
+Version: 1.5
 Author: Adam Gardner
 Author URI: https://github.com/adgardner1392
 License: GPLv2 or later
@@ -37,7 +37,7 @@ class WebP_Image_Optimization {
         add_filter( 'attachment_fields_to_edit', array( $this, 'add_attachment_buttons' ), 10, 2 );
 
         // Allow WebP uploads
-        add_filter( 'upload_mimes', array( $this, 'allow_webp_uploads' ) );
+        add_filter( 'upload_mimes', array( $this, 'allow_new_uploads' ) );
 
         // Fix WebP mime type
         add_filter( 'wp_check_filetype_and_ext', array( $this, 'fix_webp_mime_type' ), 10, 4 );
@@ -50,7 +50,17 @@ class WebP_Image_Optimization {
 
         // Register AJAX handler for converting attachments to WebP from the Media Library
         add_action( 'wp_ajax_webp_convert_media_attachment', array( $this, 'ajax_convert_media_attachment' ) );
-    }
+
+        /**
+         * NEW v1.5: AVIF support
+         */
+
+        // AJAX: Convert to AVIF and replace original attachment (from attachment edit view)
+        add_action( 'wp_ajax_avif_convert_attachment', array( $this, 'ajax_convert_attachment_to_avif' ) );
+
+        // AJAX: Convert to AVIF from Media Library row action
+        add_action( 'wp_ajax_avif_convert_media_attachment', array( $this, 'ajax_convert_media_attachment_avif' ) );
+        }
 
     /**
      * Enqueue admin scripts and styles
@@ -63,7 +73,7 @@ class WebP_Image_Optimization {
                 'webp-image-optimization-admin',
                 plugin_dir_url( __FILE__ ) . 'css/admin.css',
                 array(),
-                '1.4.1'
+                '1.5'
             );
 
             // Enqueue JS
@@ -71,7 +81,7 @@ class WebP_Image_Optimization {
                 'webp-image-optimization-admin',
                 plugin_dir_url( __FILE__ ) . 'js/admin.js',
                 array( 'jquery' ),
-                '1.4.1',
+                '1.5',
                 true
             );
 
@@ -89,7 +99,7 @@ class WebP_Image_Optimization {
                 'webp-image-optimization-media',
                 plugin_dir_url( __FILE__ ) . 'js/media.js',
                 array( 'jquery' ),
-                '1.4.1',
+                '1.5',
                 true
             );
 
@@ -177,6 +187,15 @@ class WebP_Image_Optimization {
             'webp_image_optimization_settings_section'
         );
 
+        // AVIF Quality field
+        add_settings_field(
+            'avif_quality',
+            __( 'AVIF Quality (0-100)', 'webp-image-optimization' ),
+            array( $this, 'avif_quality_render' ),
+            'webp_image_optimization_settings',
+            'webp_image_optimization_settings_section'
+        );
+
         // Don't Convert JPEG checkbox
         add_settings_field(
             'dont_convert_jpeg',
@@ -251,6 +270,17 @@ class WebP_Image_Optimization {
             $output['webp_quality'] = 80; // Default value
         }
 
+        // Sanitize AVIF Quality
+        if ( isset( $input['avif_quality'] ) ) {
+            $avif_quality = intval( $input['avif_quality'] );
+            if ( $avif_quality < 0 || $avif_quality > 100 ) {
+                $avif_quality = 80; // Default value
+            }
+            $output['avif_quality'] = $avif_quality;
+        } else {
+            $output['avif_quality'] = 80; // Default value
+        }
+
         // Sanitize Don't Convert JPEG checkbox
         $output['dont_convert_jpeg'] = isset( $input['dont_convert_jpeg'] ) && $input['dont_convert_jpeg'] == '1' ? true : false;
 
@@ -264,7 +294,10 @@ class WebP_Image_Optimization {
      * Settings section callback
      */
     public function settings_section_callback() {
-        echo '<p>' . esc_html__( 'Set the maximum dimensions for images, specify image quality/compression, and select which image types you do not want to convert to WebP. Images larger than the specified dimensions will be resized upon upload.', 'webp-image-optimization' ) . '</p>';
+        echo '<p>' . esc_html__(
+            'Set the maximum dimensions for images, specify image quality/compression, and choose conversion behaviour. Images larger than the specified dimensions will be resized upon upload.',
+            'webp-image-optimization'
+        ) . '</p>';
     }
 
     /**
@@ -326,6 +359,38 @@ class WebP_Image_Optimization {
             <input type="range" class="webp-settings__slider" id="webp_quality_range" value="<?php echo esc_attr( $webp_quality ); ?>" min="0" max="100" />
             <input type="number" class="webp-settings__input" id="webp_quality_number" name="webp_image_optimization_settings[webp_quality]" value="<?php echo esc_attr( $webp_quality ); ?>" min="0" max="100" />
             <span class="webp-settings__value" id="webp_quality_value"><?php echo esc_html( $webp_quality ); ?></span>
+        </div>
+        <?php
+    }
+
+    /**
+     * Render AVIF Quality field
+     */
+    public function avif_quality_render() {
+        $options = get_option( 'webp_image_optimization_settings' );
+        $avif_quality = isset( $options['avif_quality'] ) ? esc_attr( $options['avif_quality'] ) : '80';
+        ?>
+        <div class="webp-settings__field webp-settings__field--avif-quality">
+            <input
+                type="range"
+                class="webp-settings__slider"
+                id="avif_quality_range"
+                value="<?php echo esc_attr( $avif_quality ); ?>"
+                min="0"
+                max="100"
+            />
+            <input
+                type="number"
+                class="webp-settings__input"
+                id="avif_quality_number"
+                name="webp_image_optimization_settings[avif_quality]"
+                value="<?php echo esc_attr( $avif_quality ); ?>"
+                min="0"
+                max="100"
+            />
+            <span class="webp-settings__value" id="avif_quality_value">
+                <?php echo esc_html( $avif_quality ); ?>
+            </span>
         </div>
         <?php
     }
@@ -576,6 +641,104 @@ class WebP_Image_Optimization {
     }
 
     /**
+     * Convert image to AVIF format using Imagick or GD (if available).
+     */
+    public function convert_to_avif( $file ) {
+        $file_info = pathinfo( $file );
+        $extension = strtolower( $file_info['extension'] );
+
+        // Only convert if it's a supported input format
+        if ( ! in_array( $extension, array( 'jpeg', 'jpg', 'png' ), true ) ) {
+            return false;
+        }
+
+        // Path for the AVIF file
+        $avif_file = $file_info['dirname'] . '/' . $file_info['filename'] . '.avif';
+
+        // Bail if it already exists
+        if ( file_exists( $avif_file ) ) {
+            return false;
+        }
+
+        // We'll just reuse the WebP quality setting as a "general quality" control.
+        // (You can split this out into its own 'avif_quality' setting later.)
+        $options      = get_option( 'webp_image_optimization_settings' );
+        $avif_quality = isset( $options['avif_quality'] ) ? intval( $options['avif_quality'] ) : 80;
+
+
+        // Try Imagick first
+        if ( class_exists( 'Imagick' ) ) {
+            try {
+                $image = new Imagick( $file );
+                // Some Imagick builds use 'AVIF', some 'avif'. We'll be defensive.
+                $image->setImageFormat( 'avif' );
+                // Compression "quality" for AVIF in Imagick maps roughly like JPEG/WebP quality.
+                $image->setImageCompressionQuality( $avif_quality );
+
+                // Preserve alpha for PNG
+                if ( $extension === 'png' ) {
+                    $image->setImageAlphaChannel( Imagick::ALPHACHANNEL_ACTIVATE );
+                }
+
+                if ( $image->writeImage( $avif_file ) ) {
+                    $image->destroy();
+                    return $avif_file;
+                }
+
+                $image->destroy();
+                error_log( 'WebP Image Optimization: Imagick failed to convert ' . $file . ' to AVIF.' );
+                return false;
+            } catch ( Exception $e ) {
+                error_log( 'WebP Image Optimization: Imagick exception for ' . $file . ' - ' . $e->getMessage() );
+                // fall through to GD
+            }
+        }
+
+        // Fallback: GD with imageavif() (PHP 8.1+). We only attempt if the function exists.
+        if ( function_exists( 'imageavif' ) ) {
+            switch ( $extension ) {
+                case 'jpeg':
+                case 'jpg':
+                    $img = imagecreatefromjpeg( $file );
+                    break;
+                case 'png':
+                    $img = imagecreatefrompng( $file );
+                    if ( ! $img ) {
+                        error_log( 'WebP Image Optimization: Failed GD createfrompng for AVIF ' . $file );
+                        return false;
+                    }
+                    // Preserve transparency
+                    imagepalettetotruecolor( $img );
+                    imagealphablending( $img, true );
+                    imagesavealpha( $img, true );
+                    break;
+                default:
+                    return false;
+            }
+
+            if ( ! $img ) {
+                error_log( 'WebP Image Optimization: GD failed to create source for AVIF ' . $file );
+                return false;
+            }
+
+            // imageavif( resource $image, ?string $file = null, int $quality = -1 ): bool
+            $result = imageavif( $img, $avif_file, $avif_quality );
+            imagedestroy( $img );
+
+            if ( $result ) {
+                return $avif_file;
+            }
+
+            error_log( 'WebP Image Optimization: imageavif() failed for ' . $file );
+            return false;
+        }
+
+        // If we reach here, neither Imagick-with-AVIF nor GD+imageavif() worked
+        error_log( 'WebP Image Optimization: No AVIF support available on server.' );
+        return false;
+    }
+
+    /**
      * Resize image to specified dimensions.
      */
     public function resize_image( $file, $max_width, $max_height ) {
@@ -650,54 +813,137 @@ class WebP_Image_Optimization {
     /**
      * Add Convert to WebP button to attachment edit fields
      */
-    public function add_attachment_buttons( $form_fields, $post ) {
-        // Check if the attachment is an image
-        if ( strpos( $post->post_mime_type, 'image/' ) !== false ) {
-            $file_info = pathinfo( get_attached_file( $post->ID ) );
-            $extension = strtolower( $file_info['extension'] );
+    // public function add_attachment_buttons( $form_fields, $post ) {
+    //     // Check if the attachment is an image
+    //     if ( strpos( $post->post_mime_type, 'image/' ) !== false ) {
+    //         $file_info = pathinfo( get_attached_file( $post->ID ) );
+    //         $extension = strtolower( $file_info['extension'] );
 
-            if ( $extension !== 'webp' ) {
-                // Add Convert to WebP button
+    //         if ( $extension !== 'webp' ) {
+    //             // Add Convert to WebP button
+    //             $form_fields['convert_to_webp'] = array(
+    //                 'label' => esc_html__( 'Convert to WebP', 'webp-image-optimization' ),
+    //                 'input' => 'html',
+    //                 'html'  => '<button type="button" class="button convert-to-webp" data-attachment-id="' . esc_attr( $post->ID ) . '">' . esc_html__( 'Convert to WebP', 'webp-image-optimization' ) . '</button>',
+    //             );
+    //         }
+
+    //         // Show the file size reduction
+    //         $original_size = get_post_meta( $post->ID, '_original_file_size', true );
+    //         $webp_size     = get_post_meta( $post->ID, '_webp_file_size', true );
+
+    //         // Calculate the percentage saved
+    //         $percentage_saved = 0;
+    //         if ( $original_size && $webp_size ) {
+    //             $percentage_saved = ( ( $original_size - $webp_size ) / $original_size ) * 100;
+    //         }
+
+    //         // Only show this data if the image has been converted
+    //         if ( $extension === 'webp' && $original_size && $webp_size ) {
+    //             // Format the sizes
+    //             $formatted_original_size = $this->format_bytes( $original_size );
+    //             $formatted_webp_size     = $this->format_bytes( $webp_size );
+    //             $saved_bytes             = $original_size - $webp_size;
+    //             $formatted_saved_size    = $this->format_bytes( $saved_bytes );
+
+    //             $form_fields['file_size_saved'] = array(
+    //                 'label' => esc_html__( 'File Size Saved', 'webp-image-optimization' ),
+    //                 'input' => 'html',
+    //                 'html'  => '<p>' . sprintf(
+    //                     esc_html__( 'Original Size: %s, WebP Size: %s, Saved: %s (%.2f%%)', 'webp-image-optimization' ),
+    //                     esc_html( $formatted_original_size ),
+    //                     esc_html( $formatted_webp_size ),
+    //                     esc_html( $formatted_saved_size ),
+    //                     esc_html( $percentage_saved )
+    //                 ) . '</p>',
+    //             );
+    //         }
+    //     }
+    //     return $form_fields;
+    // }
+
+    public function add_attachment_buttons( $form_fields, $post ) {
+        // Only act on images
+        if ( strpos( $post->post_mime_type, 'image/' ) !== false ) {
+            $file_path  = get_attached_file( $post->ID );
+            $file_info  = pathinfo( $file_path );
+            $extension  = strtolower( $file_info['extension'] );
+
+            // --- 1. Conversion buttons ---
+
+            // Show "Convert to WebP" if it's not already WebP
+            if ( $extension !== 'webp' && $extension !== 'avif' ) {
                 $form_fields['convert_to_webp'] = array(
                     'label' => esc_html__( 'Convert to WebP', 'webp-image-optimization' ),
                     'input' => 'html',
-                    'html'  => '<button type="button" class="button convert-to-webp" data-attachment-id="' . esc_attr( $post->ID ) . '">' . esc_html__( 'Convert to WebP', 'webp-image-optimization' ) . '</button>',
+                    'html'  => '<button type="button" class="button convert-to-webp" data-attachment-id="' . esc_attr( $post->ID ) . '">' .
+                                esc_html__( 'Convert to WebP', 'webp-image-optimization' ) .
+                            '</button>',
                 );
             }
 
-            // Show the file size reduction
-            $original_size = get_post_meta( $post->ID, '_original_file_size', true );
-            $webp_size     = get_post_meta( $post->ID, '_webp_file_size', true );
-
-            // Calculate the percentage saved
-            $percentage_saved = 0;
-            if ( $original_size && $webp_size ) {
-                $percentage_saved = ( ( $original_size - $webp_size ) / $original_size ) * 100;
+            // Show "Convert to AVIF" if it's not already AVIF
+            if ( $extension !== 'webp' && $extension !== 'avif' ) {
+                $form_fields['convert_to_avif'] = array(
+                    'label' => esc_html__( 'Convert to AVIF', 'webp-image-optimization' ),
+                    'input' => 'html',
+                    'html'  => '<button type="button" class="button convert-to-avif" data-attachment-id="' . esc_attr( $post->ID ) . '">' .
+                                esc_html__( 'Convert to AVIF', 'webp-image-optimization' ) .
+                            '</button>',
+                );
             }
 
-            // Only show this data if the image has been converted
+            // --- 2. File size savings reporting ---
+
+            $original_size = get_post_meta( $post->ID, '_original_file_size', true );
+            $webp_size     = get_post_meta( $post->ID, '_webp_file_size', true );
+            $avif_size     = get_post_meta( $post->ID, '_avif_file_size', true );
+
+            // We'll prefer to show whichever converted size data exists and matches current format.
+            // If it's currently WebP:
             if ( $extension === 'webp' && $original_size && $webp_size ) {
-                // Format the sizes
-                $formatted_original_size = $this->format_bytes( $original_size );
-                $formatted_webp_size     = $this->format_bytes( $webp_size );
-                $saved_bytes             = $original_size - $webp_size;
-                $formatted_saved_size    = $this->format_bytes( $saved_bytes );
+                $percentage_saved = 0;
+                if ( $original_size > 0 ) {
+                    $percentage_saved = ( ( $original_size - $webp_size ) / $original_size ) * 100;
+                }
 
                 $form_fields['file_size_saved'] = array(
                     'label' => esc_html__( 'File Size Saved', 'webp-image-optimization' ),
                     'input' => 'html',
                     'html'  => '<p>' . sprintf(
                         esc_html__( 'Original Size: %s, WebP Size: %s, Saved: %s (%.2f%%)', 'webp-image-optimization' ),
-                        esc_html( $formatted_original_size ),
-                        esc_html( $formatted_webp_size ),
-                        esc_html( $formatted_saved_size ),
+                        esc_html( $this->format_bytes( $original_size ) ),
+                        esc_html( $this->format_bytes( $webp_size ) ),
+                        esc_html( $this->format_bytes( $original_size - $webp_size ) ),
+                        esc_html( $percentage_saved )
+                    ) . '</p>',
+                );
+            }
+
+            // If it's currently AVIF:
+            if ( $extension === 'avif' && $original_size && $avif_size ) {
+                $percentage_saved = 0;
+                if ( $original_size > 0 ) {
+                    $percentage_saved = ( ( $original_size - $avif_size ) / $original_size ) * 100;
+                }
+
+                $form_fields['file_size_saved'] = array(
+                    'label' => esc_html__( 'File Size Saved', 'webp-image-optimization' ),
+                    'input' => 'html',
+                    'html'  => '<p>' . sprintf(
+                        esc_html__( 'Original Size: %s, AVIF Size: %s, Saved: %s (%.2f%%)', 'webp-image-optimization' ),
+                        esc_html( $this->format_bytes( $original_size ) ),
+                        esc_html( $this->format_bytes( $avif_size ) ),
+                        esc_html( $this->format_bytes( $original_size - $avif_size ) ),
                         esc_html( $percentage_saved )
                     ) . '</p>',
                 );
             }
         }
+
         return $form_fields;
     }
+
 
     /**
      * Format bytes into KB or MB
@@ -716,20 +962,37 @@ class WebP_Image_Optimization {
     /**
      * Allow WebP uploads
      */
-    public function allow_webp_uploads( $mimes ) {
+    public function allow_new_uploads( $mimes ) {
         $mimes['webp'] = 'image/webp';
+        $mimes['avif'] = 'image/avif';
         return $mimes;
     }
 
     /**
      * Ensure WebP images have the correct MIME type
      */
+    // public function fix_webp_mime_type( $data, $file, $filename, $mimes ) {
+    //     $ext = strtolower( pathinfo( $filename, PATHINFO_EXTENSION ) );
+    //     if ( 'webp' === $ext ) {
+    //         $data['type'] = 'image/webp';
+    //         $data['ext']  = 'webp';
+    //     }
+    //     return $data;
+    // }
+
     public function fix_webp_mime_type( $data, $file, $filename, $mimes ) {
         $ext = strtolower( pathinfo( $filename, PATHINFO_EXTENSION ) );
+
         if ( 'webp' === $ext ) {
             $data['type'] = 'image/webp';
             $data['ext']  = 'webp';
         }
+
+        if ( 'avif' === $ext ) { // NEW
+            $data['type'] = 'image/avif';
+            $data['ext']  = 'avif';
+        }
+
         return $data;
     }
 
@@ -804,6 +1067,73 @@ class WebP_Image_Optimization {
     }
 
     /**
+     * AJAX: Convert an attachment to AVIF and update that attachment to use the AVIF version.
+     */
+    public function ajax_convert_attachment_to_avif() {
+        // Verify nonce
+        check_ajax_referer( 'webp_image_optimization_nonce', 'nonce' );
+
+        // Permission check
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( 'You do not have permission to perform this action.' );
+        }
+
+        // Attachment ID
+        $attachment_id = isset( $_POST['attachment_id'] ) ? intval( $_POST['attachment_id'] ) : 0;
+        if ( ! $attachment_id ) {
+            wp_send_json_error( 'Invalid attachment ID.' );
+        }
+
+        // Original file
+        $original_file = get_attached_file( $attachment_id );
+        if ( ! $original_file || ! file_exists( $original_file ) ) {
+            wp_send_json_error( 'Original file does not exist.' );
+        }
+
+        // Get original size
+        $original_file_size = filesize( $original_file );
+
+        // Convert
+        $avif_file = $this->convert_to_avif( $original_file );
+        if ( ! $avif_file ) {
+            wp_send_json_error( 'Conversion to AVIF failed. Check error logs for details.' );
+        }
+
+        // Validate output
+        if ( ! file_exists( $avif_file ) || filesize( $avif_file ) === 0 ) {
+            wp_send_json_error( 'AVIF file was not created successfully.' );
+        }
+
+        $avif_file_size = filesize( $avif_file );
+
+        // Store size info for reporting later
+        update_post_meta( $attachment_id, '_original_file_size', $original_file_size );
+        update_post_meta( $attachment_id, '_avif_file_size', $avif_file_size );
+
+        // Build relative path + URL
+        $upload_dir          = wp_upload_dir();
+        $relative_avif_path  = str_replace( $upload_dir['basedir'] . '/', '', $avif_file );
+        $avif_url            = $upload_dir['baseurl'] . '/' . $relative_avif_path;
+
+        // Point attachment at the AVIF file
+        update_post_meta( $attachment_id, '_wp_attached_file', $relative_avif_path );
+
+        // Update post mime + guid
+        wp_update_post( array(
+            'ID'             => $attachment_id,
+            'guid'           => $avif_url,
+            'post_mime_type' => 'image/avif',
+        ) );
+
+        // Regenerate metadata (sizes etc.)
+        $metadata = wp_generate_attachment_metadata( $attachment_id, $avif_file );
+        wp_update_attachment_metadata( $attachment_id, $metadata );
+
+        wp_send_json_success( array( 'avif_url' => $avif_url ) );
+    }
+
+
+    /**
      * Add Convert to WebP button to the Media Library
      */
     public function add_media_buttons( $actions, $post ) {
@@ -873,6 +1203,53 @@ class WebP_Image_Optimization {
 
         wp_send_json_success( array( 'webp_url' => $webp_url ) );
     }
+
+    /**
+     * AJAX: Convert to AVIF from the Media Library row action (list view).
+     */
+    public function ajax_convert_media_attachment_avif() {
+        // Verify nonce
+        check_ajax_referer( 'webp_image_optimization_nonce', 'nonce' );
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( 'You do not have permission to perform this action.' );
+        }
+
+        $attachment_id = isset( $_POST['attachment_id'] ) ? intval( $_POST['attachment_id'] ) : 0;
+        if ( ! $attachment_id ) {
+            wp_send_json_error( 'Invalid attachment ID.' );
+        }
+
+        $original_file = get_attached_file( $attachment_id );
+        if ( ! $original_file || ! file_exists( $original_file ) ) {
+            wp_send_json_error( 'Original file does not exist.' );
+        }
+
+        $avif_file = $this->convert_to_avif( $original_file );
+        if ( ! $avif_file ) {
+            wp_send_json_error( 'Conversion to AVIF failed. Check error logs for details.' );
+        }
+
+        if ( ! file_exists( $avif_file ) || filesize( $avif_file ) === 0 ) {
+            wp_send_json_error( 'AVIF file was not created successfully.' );
+        }
+
+        $upload_dir         = wp_upload_dir();
+        $relative_avif_path = str_replace( $upload_dir['basedir'] . '/', '', $avif_file );
+        $avif_url           = $upload_dir['baseurl'] . '/' . $relative_avif_path;
+
+        // Update file meta to AVIF
+        update_post_meta( $attachment_id, '_wp_attached_file', $relative_avif_path );
+
+        wp_update_post( array(
+            'ID'             => $attachment_id,
+            'guid'           => $avif_url,
+            'post_mime_type' => 'image/avif',
+        ) );
+
+        wp_send_json_success( array( 'avif_url' => $avif_url ) );
+    }
+
 }
 
 // Instantiate the plugin class

@@ -3,9 +3,9 @@
 Contributors: adgardner1392  
 Tags: webp, image optimization, image conversion, jpeg, png  
 Requires at least: 5.0  
-Tested up to: 6.6.2  
+Tested up to: 6.8.3 
 Requires PHP: 7.2  
-Stable tag: 1.4.1
+Stable tag: 1.5
 License: GPLv2 or later  
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -126,6 +126,10 @@ After conversion, the plugin displays the original and WebP file sizes in a read
 4. **File Size Savings Display**
 
 == Changelog ==
+
+= 1.5 =
+
+* Added AVIF support.
 
 = 1.4.1 =
 

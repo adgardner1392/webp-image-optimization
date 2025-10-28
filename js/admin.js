@@ -33,4 +33,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Synchronize WebP Quality
     syncInputs('webp_quality_range', 'webp_quality_number', 'webp_quality_value');
+
+    // Synchronize AVIF Quality
+    syncInputs('avif_quality_range', 'avif_quality_number', 'avif_quality_value');
 });
