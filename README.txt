@@ -3,22 +3,22 @@
 Contributors: adgardner1392  
 Tags: webp, image optimization, image conversion, jpeg, png  
 Requires at least: 5.0  
-Tested up to: 6.8.3 
+Tested up to: 6.9 
 Requires PHP: 7.2  
 Stable tag: 1.5
 License: GPLv2 or later  
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Automatically converts uploaded JPEG and PNG images to WebP format, resizes them, and allows conversion of existing images directly from the Media Library with detailed file size savings.
+Automatically converts uploaded JPEG and PNG images to WebP (or AVIF) format, resizes them, and allows conversion of existing images directly from the Media Library with detailed file size savings.
 
 == Description ==
 
-**WebP Image Optimization** enhances your website's performance by converting uploaded JPEG and PNG images to the more efficient WebP format. It also allows you to resize images to specified maximum dimensions and adjust image quality and compression settings. With the latest update, you can now convert existing images directly from the Media Library and view detailed file size savings, making the optimization process more insightful and streamlined.
+**WebP Image Optimization** enhances your website's performance by converting uploaded JPEG and PNG images to the more efficient WebP (or AVIF) format. It also allows you to resize images to specified maximum dimensions and adjust image quality and compression settings. With the latest update, you can now convert existing images directly from the Media Library and view detailed file size savings, making the optimization process more insightful and streamlined.
 
 **Key Features:**
 
-- **Automatic Conversion to WebP:**
-  - Converts JPEG and PNG images to WebP format upon upload.
+- **Automatic Conversion to WebP or AVIF:**
+  - Converts JPEG and PNG images to WebP or AVIF format upon upload.
   - Option to exclude JPEG and/or PNG images from conversion.
 
 - **Media Library Integration:**
@@ -31,6 +31,8 @@ Automatically converts uploaded JPEG and PNG images to WebP format, resizes them
   - Maintains aspect ratio during resizing.
 
 - **Quality and Compression Control:**
+  - Set WebP quality (0-100).
+  - Set AVIF compression level (0-9).
   - Set JPEG quality (0-100).
   - Set PNG compression level (0-9).
   - Adjust settings via intuitive sliders or input fields.
@@ -52,7 +54,7 @@ Automatically converts uploaded JPEG and PNG images to WebP format, resizes them
 **Benefits:**
 
 - **Improved Page Load Times:**
-  - WebP images are typically smaller than JPEG and PNG, reducing bandwidth usage.
+  - WebP/AVIF images are typically smaller than JPEG and PNG, reducing bandwidth usage.
   - Faster image loading enhances user experience.
 
 - **SEO Advantages:**
